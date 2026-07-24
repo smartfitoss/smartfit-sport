@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{{SPORT_NAME}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #000;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* 加载提示 */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .loading-overlay.hidden {
+      display: none;
+    }
+
+    .loading-text {
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #0052D9;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-progress {
+      margin-top: 20px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    /* 运动名称提示 */
+    .sport-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .sport-name {
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 5px;
+    }
+
+    .sport-tip {
+      font-size: 12px;
+      text-align: center;
+      opacity: 0.7;
+    }
+
+    /* 视频容器 */
+    .video-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 视频元素 */
+    #video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    /* Canvas */
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* 控制按钮 */
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      display: flex;
+      gap: 10px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn {
+      flex: 1;
+      height: 44px;
+      line-height: 44px;
+      border-radius: 22px;
+      font-size: 16px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: #0052D9;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    .btn-back {
+      background: rgba(255, 77, 79, 0.8);
+      color: #fff;
+    }
+
+    /* 计数显示 */
+    .count-display {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 5;
+      text-align: center;
+    }
+
+    .count-num {
+      font-size: 100px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.9);
+      text-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <!-- 加载提示 -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-text" id="loadingText">加载中...</div>
+    <div class="loading-spinner"></div>
+    <div class="loading-progress" id="loadingProgress">正在加载模型，首次可能需要5-10秒</div>
+  </div>
+
+  <!-- 运动名称提示 -->
+  <div class="sport-header">
+    <div class="sport-name" id="sportName">加载中...</div>
+    <div class="sport-tip">请将全身置于画面中</div>
+  </div>
+
+  <!-- 视频和Canvas -->
+  <div class="video-container">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <!-- 计数显示 -->
+  <div class="count-display">
+    <div class="count-num" id="count">0</div>
+  </div>
+
+  <!-- 控制按钮 -->
+  <div class="controls">
+    <button class="btn btn-primary" id="btnToggle">开始</button>
+    <button class="btn btn-secondary" id="btnSwitch">切换摄像头</button>
+    <button class="btn btn-back" id="btnBack">结束</button>
+  </div>
+
+  <!-- TensorFlow.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.11.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.11.0/dist/tf-converter.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.11.0/dist/tf-backend-webgl.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.min.js"></script>
+
+  <script>
+    // 更新加载提示
+    function updateLoading(text, progress) {
+      document.getElementById('loadingText').textContent = text;
+      if (progress) {
+        document.getElementById('loadingProgress').textContent = progress;
+      }
+    }
+
+    // 隐藏加载提示
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.add('hidden');
+    }
+
+    // 从URL获取参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const sportCode = urlParams.get('code') || 'high_knee_lift';
+    const sportName = decodeURIComponent(urlParams.get('name') || '高抬腿');
+
+    // 更新UI
+    document.getElementById('sportName').textContent = sportName;
+
+    // 全局变量
+    let detector = null;
+    let isDetecting = false;
+    let count = 0;
+    let video = null;
+    let canvas = null;
+    let ctx = null;
+    let animationId = null;
+    let useFrontCamera = false;
+
+    // COCO骨架连接线
+    const SKELETON_CONNECTIONS = [
+      [0, 1], [0, 2], [1, 3], [2, 4], // 头部
+      [0, 5], [0, 6], [5, 7], [7, 9], [6, 8], [8, 10], // 上肢
+      [5, 11], [6, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 12] // 下肢
+    ];
+
+    // 初始化
+    async function init() {
+      console.log('[运动识别] 初始化...');
+
+      try {
+        updateLoading('加载中...', '正在初始化TensorFlow.js...');
+
+        // 等待TensorFlow.js后端初始化
+        await tf.ready();
+        console.log('[运动识别] TensorFlow.js 后端就绪');
+        updateLoading('加载中...', 'TensorFlow.js就绪，正在加载模型...');
+
+        // 创建MoveNet检测器
+        detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.MoveNet,
+          { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+        );
+
+        console.log('[运动识别] MoveNet模型加载完成');
+        updateLoading('加载中...', '模型加载完成，正在启动摄像头...');
+
+        // 初始化摄像头
+        await initCamera();
+
+        // 绑定事件
+        bindEvents();
+
+        // 隐藏加载提示
+        hideLoading();
+
+      } catch (error) {
+        console.error('[运动识别] 初始化失败:', error);
+        updateLoading('加载失败', '请刷新页面重试');
+      }
+    }
+
+    // 初始化摄像头
+    async function initCamera() {
+      video = document.getElementById('video');
+      canvas = document.getElementById('canvas');
+      ctx = canvas.getContext('2d');
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: useFrontCamera ? 'user' : 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+
+        video.srcObject = stream;
+        await video.play();
+
+        // 设置Canvas尺寸
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        console.log('[运动识别] 摄像头就绪');
+
+      } catch (error) {
+        console.error('[运动识别] 摄像头启动失败:', error);
+        updateLoading('摄像头失败', '请允许摄像头权限');
+      }
+    }
+
+    // 绑定事件
+    function bindEvents() {
+      document.getElementById('btnToggle').addEventListener('click', toggleDetection);
+      document.getElementById('btnSwitch').addEventListener('click', switchCamera);
+      document.getElementById('btnBack').addEventListener('click', goBack);
+    }
+
+    // 开始/停止识别
+    function toggleDetection() {
+      isDetecting = !isDetecting;
+      const btn = document.getElementById('btnToggle');
+      btn.textContent = isDetecting ? '停止' : '开始';
+
+      if (isDetecting) {
+        detectLoop();
+      }
+    }
+
+    // 识别循环
+    async function detectLoop() {
+      if (!isDetecting || !detector) return;
+
+      try {
+        const poses = await detector.estimatePoses(video);
+
+        if (poses && poses.length > 0) {
+          const pose = poses[0];
+          drawSkeleton(pose);
+        }
+
+      } catch (error) {
+        console.error('[运动识别] 识别错误:', error);
+      }
+
+      animationId = requestAnimationFrame(detectLoop);
+    }
+
+    // 绘制骨架
+    function drawSkeleton(pose) {
+      // 清空Canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 绘制连接线
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 3;
+
+      for (const [startIdx, endIdx] of SKELETON_CONNECTIONS) {
+        const startKp = pose.keypoints[startIdx];
+        const endKp = pose.keypoints[endIdx];
+
+        if (startKp.score > 0.3 && endKp.score > 0.3) {
+          ctx.beginPath();
+          ctx.moveTo(startKp.x, startKp.y);
+          ctx.lineTo(endKp.x, endKp.y);
+          ctx.stroke();
+        }
+      }
+
+      // 绘制关键点
+      for (const kp of pose.keypoints) {
+        if (kp.score > 0.3) {
+          ctx.beginPath();
+          ctx.arc(kp.x, kp.y, 6, 0, 2 * Math.PI);
+          ctx.fillStyle = '#ff0000';
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 切换摄像头
+    async function switchCamera() {
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+      }
+
+      useFrontCamera = !useFrontCamera;
+      await initCamera();
+
+      if (isDetecting) {
+        cancelAnimationFrame(animationId);
+        detectLoop();
+      }
+    }
+
+    // 返回
+    function goBack() {
+      // 通知小程序
+      if (window.wx && window.wx.miniProgram) {
+        window.wx.miniProgram.postMessage({ data: { action: 'finish' } });
+      }
+
+      // 关闭网页
+      window.close();
+    }
+
+    // 页面加载完成后初始化
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
