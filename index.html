@@ -99,23 +99,72 @@
       cursor: pointer;
     }
 
-    video {
+    .video-container {
       position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    video {
+      position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
-      transform: scaleX(-1);
     }
 
     canvas {
-      position: fixed;
+      position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
       pointer-events: none;
+      transform: scaleX(-1);
+    }
+
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      gap: 10px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      z-index: 50;
+    }
+
+    .btn {
+      flex: 1;
+      height: 44px;
+      line-height: 44px;
+      border-radius: 22px;
+      font-size: 16px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      user-select: none;
+    }
+
+    .btn-primary {
+      background: #0052D9;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    .btn-stop {
+      background: rgba(255, 77, 79, 0.8);
+      color: #fff;
     }
   </style>
 </head>
@@ -135,8 +184,17 @@
   </div>
 
   <!-- 视频和Canvas -->
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="canvas"></canvas>
+  <div class="video-container">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <!-- 控制按钮 -->
+  <div class="controls" id="controls">
+    <button class="btn btn-primary" id="btnToggle">开始</button>
+    <button class="btn btn-secondary" id="btnSwitch">切换摄像头</button>
+    <button class="btn btn-stop" id="btnBack">结束</button>
+  </div>
 
   <!-- TensorFlow.js -->
   <script src="https://unpkg.com/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
@@ -149,11 +207,11 @@
     function showError(message) {
       document.getElementById('loadingOverlay').classList.add('hidden');
       document.getElementById('errorOverlay').style.display = 'flex';
-      document.getElementById('errorText').textContent = message;
+      document.getElementById('errorText').textContent = mirrorText(message);
     }
 
     function updateLoading(text, progress) {
-      document.getElementById('loadingText').textContent = text;
+      document.getElementById('loadingText').textContent = mirrorText(text);
       if (progress) {
         document.getElementById('loadingProgress').textContent = progress;
       }
@@ -161,6 +219,10 @@
 
     function hideLoading() {
       document.getElementById('loadingOverlay').classList.add('hidden');
+    }
+
+    function mirrorText(text) {
+      return text;
     }
 
     // 从URL获取参数
@@ -172,7 +234,7 @@
 
     // 全局变量
     let detector = null;
-    let isDetecting = false;
+    let isRunning = false;
     let count = 0;
     let video = null;
     let canvas = null;
@@ -194,14 +256,12 @@
       try {
         updateLoading('初始化中...', '正在等待TensorFlow.js后端就绪...');
 
-        // 等待 TensorFlow.js 后端就绪
         await tf.ready();
         console.log('[运动识别] TensorFlow.js 后端已就绪');
         console.log('[运动识别] 当前后端:', tf.getBackend());
 
         updateLoading('加载中...', '正在从GitHub加载模型...');
 
-        // 从 GitHub 加载模型
         const modelUrl = 'https://smartfitoss.github.io/smartfit-sport/model.json';
         console.log('[运动识别] 模型URL:', modelUrl);
 
@@ -222,8 +282,6 @@
 
         console.log('[运动识别] 初始化完成！');
         hideLoading();
-
-        startDetection();
 
       } catch (error) {
         console.error('[运动识别] 初始化失败:', error);
@@ -259,13 +317,70 @@
       }
     }
 
+    function toggleDetection() {
+      isRunning = !isRunning;
+      const btn = document.getElementById('btnToggle');
+
+      if (isRunning) {
+        btn.textContent = '停止';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-stop');
+        startDetection();
+      } else {
+        btn.textContent = '开始';
+        btn.classList.remove('btn-stop');
+        btn.classList.add('btn-primary');
+        stopDetection();
+      }
+    }
+
+    async function switchCamera() {
+      console.log('[运动识别] 切换摄像头');
+
+      if (isRunning) {
+        stopDetection();
+      }
+
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+      }
+
+      useFrontCamera = !useFrontCamera;
+      console.log('[运动识别] 新摄像头:', useFrontCamera ? '前置' : '后置');
+
+      try {
+        await initCamera();
+        console.log('[运动识别] 摄像头切换成功');
+
+        if (isRunning) {
+          startDetection();
+        }
+      } catch (error) {
+        console.error('[运动识别] 摄像头切换失败:', error);
+        alert('摄像头切换失败: ' + error.message);
+      }
+    }
+
     function startDetection() {
-      isDetecting = true;
+      console.log('[运动识别] 开始识别');
+      isRunning = true;
       detectLoop();
     }
 
+    function stopDetection() {
+      console.log('[运动识别] 停止识别');
+      isRunning = false;
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
     async function detectLoop() {
-      if (!isDetecting || !detector) return;
+      if (!isRunning || !detector) return;
 
       try {
         const poses = await detector.estimatePoses(video);
@@ -314,6 +429,15 @@
         }
       }
     }
+
+    document.getElementById('btnToggle').addEventListener('click', toggleDetection);
+    document.getElementById('btnSwitch').addEventListener('click', switchCamera);
+    document.getElementById('btnBack').addEventListener('click', function() {
+      if (window.wx && window.wx.miniProgram) {
+        window.wx.miniProgram.postMessage({ data: { action: 'finish' } });
+      }
+      window.close();
+    });
 
     window.addEventListener('load', init);
   </script>
