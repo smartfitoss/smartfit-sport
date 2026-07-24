@@ -18,7 +18,6 @@
       overflow: hidden;
     }
 
-    /* 加载提示 */
     .loading-overlay {
       position: fixed;
       top: 0;
@@ -139,22 +138,13 @@
   <video id="video" autoplay playsinline muted></video>
   <canvas id="canvas"></canvas>
 
-  <!-- TensorFlow.js - 使用稳定的版本 -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.min.js"></script>
+  <!-- TensorFlow.js -->
+  <script src="https://unpkg.com/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+  <script src="https://unpkg.com/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.min.js"></script>
 
   <script>
     console.log('[运动识别] 页面加载完成');
     console.log('[运动识别] TensorFlow.js 版本:', tf.version.tfjs);
-
-    // 错误处理
-    window.addEventListener('error', function(e) {
-      console.error('[页面错误]', e.error);
-      // 忽略 sourcemap 错误
-      if (!e.message || !e.message.includes('sourcemap')) {
-        showError('加载失败：' + (e.message || '未知错误'));
-      }
-    });
 
     function showError(message) {
       document.getElementById('loadingOverlay').classList.add('hidden');
@@ -192,9 +182,9 @@
 
     // COCO骨架连接线
     const SKELETON_CONNECTIONS = [
-      [0, 1], [0, 2], [1, 3], [2, 4], // 头部
-      [0, 5], [0, 6], [5, 7], [7, 9], [6, 8], [8, 10], // 上肢
-      [5, 11], [6, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 12] // 下肢
+      [0, 1], [0, 2], [1, 3], [2, 4],
+      [0, 5], [0, 6], [5, 7], [7, 9], [6, 8], [8, 10],
+      [5, 11], [6, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 12]
     ];
 
     // 初始化
@@ -202,35 +192,31 @@
       console.log('[运动识别] 开始初始化...');
 
       try {
-        updateLoading('加载中...', '正在初始化...');
+        updateLoading('加载中...', '正在从GitHub加载模型...');
 
-        // 等待 TensorFlow.js 就绪
-        console.log('[运动识别] 等待 TensorFlow.js 后端...');
-        await new Promise(resolve => setTimeout(resolve, 100)); // 给 TF 一点时间
-        updateLoading('加载中...', 'TensorFlow.js 就绪，正在加载模型...');
+        // 从 GitHub 加载模型
+        const modelUrl = 'https://smartfitoss.github.io/smartfit-sport/model/model.json';
 
-        // 创建检测器
-        console.log('[运动识别] 创建 MoveNet 检测器...');
-        try {
-          detector = await poseDetection.createDetector(
-            poseDetection.SupportedModels.MoveNet,
-            { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
-          );
-          console.log('[运动识别] MoveNet 检测器创建成功');
-        } catch (detectorError) {
-          console.error('[运动识别] 检测器创建失败:', detectorError);
-          throw new Error('MoveNet 模型加载失败: ' + detectorError.message);
-        }
+        console.log('[运动识别] 模型URL:', modelUrl);
 
+        updateLoading('加载中...', '正在创建检测器...');
+
+        detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.MoveNet,
+          {
+            modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+            modelUrl: modelUrl
+          }
+        );
+
+        console.log('[运动识别] MoveNet 检测器创建成功');
         updateLoading('加载中...', '模型加载完成，正在启动摄像头...');
 
-        // 初始化摄像头
         await initCamera();
 
         console.log('[运动识别] 初始化完成！');
         hideLoading();
 
-        // 自动开始识别
         startDetection();
 
       } catch (error) {
@@ -239,14 +225,12 @@
       }
     }
 
-    // 初始化摄像头
     async function initCamera() {
       video = document.getElementById('video');
       canvas = document.getElementById('canvas');
       ctx = canvas.getContext('2d');
 
       try {
-        console.log('[运动识别] 请求摄像头权限...');
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: useFrontCamera ? 'user' : 'environment',
@@ -258,12 +242,10 @@
         video.srcObject = stream;
         await video.play();
 
-        // 设置Canvas尺寸
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
 
         console.log('[运动识别] 摄像头就绪');
-        console.log('[运动识别] 视频尺寸:', video.videoWidth, 'x', video.videoHeight);
 
       } catch (error) {
         console.error('[运动识别] 摄像头启动失败:', error);
@@ -271,14 +253,11 @@
       }
     }
 
-    // 开始识别
     function startDetection() {
-      console.log('[运动识别] 开始识别');
       isDetecting = true;
       detectLoop();
     }
 
-    // 识别循环
     async function detectLoop() {
       if (!isDetecting || !detector) return;
 
@@ -297,14 +276,11 @@
       animationId = requestAnimationFrame(detectLoop);
     }
 
-    // 绘制骨架
     function drawSkeleton(pose) {
       if (!ctx) return;
 
-      // 清空Canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 绘制连接线
       ctx.strokeStyle = '#00ff00';
       ctx.lineWidth = 3;
 
@@ -320,7 +296,6 @@
         }
       }
 
-      // 绘制关键点
       for (const kp of pose.keypoints) {
         if (kp.score > 0.3) {
           ctx.beginPath();
@@ -334,11 +309,7 @@
       }
     }
 
-    // 页面加载完成后初始化
-    window.addEventListener('load', function() {
-      console.log('[运动识别] DOM 加载完成，开始初始化');
-      init();
-    });
+    window.addEventListener('load', init);
   </script>
 </body>
 </html>
