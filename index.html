@@ -124,7 +124,7 @@
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-text" id="loadingText">加载中...</div>
     <div class="loading-spinner"></div>
-    <div class="loading-progress" id="loadingProgress">正在加载模型，首次可能需要5-10秒</div>
+    <div class="loading-progress" id="loadingProgress">正在初始化TensorFlow.js...</div>
   </div>
 
   <!-- 错误提示 -->
@@ -192,11 +192,17 @@
       console.log('[运动识别] 开始初始化...');
 
       try {
+        updateLoading('初始化中...', '正在等待TensorFlow.js后端就绪...');
+
+        // 等待 TensorFlow.js 后端就绪
+        await tf.ready();
+        console.log('[运动识别] TensorFlow.js 后端已就绪');
+        console.log('[运动识别] 当前后端:', tf.getBackend());
+
         updateLoading('加载中...', '正在从GitHub加载模型...');
 
         // 从 GitHub 加载模型
         const modelUrl = 'https://smartfitoss.github.io/smartfit-sport/model.json';
-
         console.log('[运动识别] 模型URL:', modelUrl);
 
         updateLoading('加载中...', '正在创建检测器...');
