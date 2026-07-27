@@ -5,12 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>运动识别</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #000;
@@ -18,167 +13,122 @@
       overflow: hidden;
     }
 
+    /* ===== 加载层 ===== */
     .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: #000;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       z-index: 100;
     }
-
-    .loading-overlay.hidden {
-      display: none;
-    }
-
-    .loading-text {
-      font-size: 18px;
-      margin-bottom: 20px;
-    }
-
+    .loading-overlay.hidden { display: none; }
+    .loading-text { font-size: 18px; margin-bottom: 20px; }
     .loading-spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(255, 255, 255, 0.2);
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,255,255,0.2);
       border-top-color: #0052D9;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-progress { margin-top: 20px; font-size: 14px; color: rgba(255,255,255,0.6); }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .loading-progress {
-      margin-top: 20px;
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.6);
-    }
-
+    /* ===== 错误层 ===== */
     .error-message {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.9);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-      padding: 20px;
-      text-align: center;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.9);
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 200; padding: 20px; text-align: center;
     }
-
-    .error-title {
-      font-size: 24px;
-      color: #ff4444;
-      margin-bottom: 20px;
-    }
-
-    .error-text {
-      font-size: 16px;
-      color: #ccc;
-      margin-bottom: 30px;
-      line-height: 1.6;
-    }
-
+    .error-title { font-size: 24px; color: #ff4444; margin-bottom: 20px; }
+    .error-text { font-size: 16px; color: #ccc; margin-bottom: 30px; line-height: 1.6; }
     .error-btn {
-      padding: 15px 30px;
-      background: #0052D9;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
+      padding: 15px 30px; background: #0052D9; color: #fff;
+      border: none; border-radius: 8px; font-size: 16px; cursor: pointer;
     }
 
-    .video-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-    }
-
-    video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+    /* ===== 视频 + Canvas ===== */
+    .video-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+    video, canvas {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
       object-fit: cover;
+    }
+    video.mirror, canvas.mirror {
       transform: scaleX(-1);
     }
+    canvas { pointer-events: none; }
 
-    canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      transform: scaleX(-1);
-    }
-
-    .controls {
+    /* ===== 计数显示 ===== */
+    .counter-display {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      display: flex;
-      gap: 10px;
+      top: env(safe-area-inset-top, 0);
+      left: 0; right: 0;
+      padding: 20px 16px 16px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+      z-index: 50;
+      text-align: center;
+      pointer-events: none;
+    }
+    .sport-name {
+      font-size: 15px;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 4px;
+    }
+    .counter-value {
+      font-size: 64px;
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 0 2px 12px rgba(0,82,217,0.5);
+      line-height: 1.1;
+      transition: transform 0.15s ease;
+    }
+    .counter-value.bump { transform: scale(1.2); }
+    .counter-unit {
+      font-size: 16px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 2px;
+    }
+    .status-text {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 8px;
+      min-height: 18px;
+    }
+
+    /* ===== 控制栏 ===== */
+    .controls {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      display: flex; gap: 10px;
       padding: 20px;
-      background: rgba(0, 0, 0, 0.8);
+      padding-bottom: calc(20px + env(safe-area-inset-bottom, 0));
+      background: rgba(0,0,0,0.8);
       backdrop-filter: blur(10px);
       z-index: 50;
     }
-
     .btn {
-      flex: 1;
-      height: 44px;
-      line-height: 44px;
-      border-radius: 22px;
-      font-size: 16px;
-      font-weight: 500;
-      border: none;
-      cursor: pointer;
-      text-align: center;
+      flex: 1; height: 44px; line-height: 44px;
+      border-radius: 22px; font-size: 16px; font-weight: 500;
+      border: none; cursor: pointer; text-align: center;
       user-select: none;
     }
-
-    .btn-primary {
-      background: #0052D9;
-      color: #fff;
-    }
-
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.2);
-      color: #fff;
-    }
-
-    .btn-stop {
-      background: rgba(255, 77, 79, 0.8);
-      color: #fff;
-    }
+    .btn-primary { background: #0052D9; color: #fff; }
+    .btn-secondary { background: rgba(255,255,255,0.2); color: #fff; }
+    .btn-stop { background: rgba(255,77,79,0.8); color: #fff; }
   </style>
 </head>
 <body>
+
   <!-- 加载提示 -->
   <div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-text" id="loadingText">加载中...</div>
+    <div class="loading-text">加载中...</div>
     <div class="loading-spinner"></div>
-    <div class="loading-progress" id="loadingProgress">正在初始化TensorFlow.js...</div>
+    <div class="loading-progress" id="loadingProgress">正在初始化...</div>
   </div>
 
   <!-- 错误提示 -->
-  <div class="error-message" id="errorOverlay" style="display: none;">
+  <div class="error-message" id="errorOverlay">
     <div class="error-title">加载失败</div>
     <div class="error-text" id="errorText">请检查网络连接或刷新页面重试</div>
     <button class="error-btn" onclick="location.reload()">刷新页面</button>
@@ -190,8 +140,16 @@
     <canvas id="canvas"></canvas>
   </div>
 
+  <!-- 计数显示 -->
+  <div class="counter-display">
+    <div class="sport-name" id="sportName">运动识别</div>
+    <div class="counter-value" id="counterValue">0</div>
+    <div class="counter-unit" id="counterUnit">次</div>
+    <div class="status-text" id="statusText"></div>
+  </div>
+
   <!-- 控制按钮 -->
-  <div class="controls" id="controls">
+  <div class="controls">
     <button class="btn btn-primary" id="btnToggle">开始</button>
     <button class="btn btn-secondary" id="btnSwitch">切换摄像头</button>
     <button class="btn btn-stop" id="btnBack">结束</button>
@@ -202,245 +160,655 @@
   <script src="https://unpkg.com/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.min.js"></script>
 
   <script>
-    console.log('[运动识别] 页面加载完成');
-    console.log('[运动识别] TensorFlow.js 版本:', tf.version.tfjs);
+  'use strict';
 
-    function showError(message) {
-      document.getElementById('loadingOverlay').classList.add('hidden');
-      document.getElementById('errorOverlay').style.display = 'flex';
-      document.getElementById('errorText').textContent = mirrorText(message);
+  // ============================================================
+  //  常量定义
+  // ============================================================
+
+  // COCO 17点关键点索引（MoveNet 标准）
+  const KP = {
+    NOSE: 0, LEFT_EYE: 1, RIGHT_EYE: 2, LEFT_EAR: 3, RIGHT_EAR: 4,
+    LEFT_SHOULDER: 5, RIGHT_SHOULDER: 6,
+    LEFT_ELBOW: 7, RIGHT_ELBOW: 8,
+    LEFT_WRIST: 9, RIGHT_WRIST: 10,
+    LEFT_HIP: 11, RIGHT_HIP: 12,
+    LEFT_KNEE: 13, RIGHT_KNEE: 14,
+    LEFT_ANKLE: 15, RIGHT_ANKLE: 16
+  };
+
+  // COCO 骨架连接线
+  const SKELETON = [
+    [0,1],[0,2],[1,3],[2,4],
+    [5,7],[7,9],[6,8],[8,10],
+    [5,11],[6,12],[11,13],[13,15],[12,14],[14,16],[11,12]
+  ];
+
+  // 运动类型 → 计数器映射
+  const SPORT_MAP = {
+    'high_knee_lift':    { name: '高抬腿',     unit: '次', factory: () => new HighKneesCounter() },
+    'squat':             { name: '深蹲',       unit: '次', factory: () => new SquatCounter() },
+    'jumping_jack':      { name: '开合跳',     unit: '次', factory: () => new JumpingJackCounter() },
+    'sit_up':            { name: '仰卧起坐',   unit: '次', factory: () => new SitupCounter() },
+    'standing_long_jump':{ name: '立定跳远',   unit: 'cm', factory: () => new StandingLongJumpCounter() },
+    'rope_skipping':     { name: '跳绳',       unit: '次', factory: () => new JumpRopeCounter() }
+  };
+
+  // ============================================================
+  //  工具函数
+  // ============================================================
+
+  /** 计算三点角度（b 为顶点）*/
+  function calcAngle(a, b, c) {
+    const rad = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+    let angle = Math.abs(rad * 180 / Math.PI);
+    if (angle > 180) angle = 360 - angle;
+    return angle;
+  }
+
+  /** 检查关键点置信度 */
+  function checkConfidence(kp, indices, threshold = 0.3) {
+    return indices.every(i => kp[i].score >= threshold);
+  }
+
+  // ============================================================
+  //  Body Scale（躯干长度，用于归一化阈值）
+  // ============================================================
+
+  class BodyScale {
+    constructor(alpha = 0.1) {
+      this.alpha = alpha;
+      this.scale = null;
     }
 
-    function updateLoading(text, progress) {
-      document.getElementById('loadingText').textContent = mirrorText(text);
-      if (progress) {
-        document.getElementById('loadingProgress').textContent = progress;
+    compute(keypoints) {
+      const ls = keypoints[KP.LEFT_SHOULDER];
+      const rs = keypoints[KP.RIGHT_SHOULDER];
+      const lh = keypoints[KP.LEFT_HIP];
+      const rh = keypoints[KP.RIGHT_HIP];
+      if (ls.score < 0.3 || rs.score < 0.3 || lh.score < 0.3 || rh.score < 0.3) {
+        return this.scale; // 返回上一次的值
       }
-    }
+      const scx = (ls.x + rs.x) / 2, scy = (ls.y + rs.y) / 2;
+      const hcx = (lh.x + rh.x) / 2, hcy = (lh.y + rh.y) / 2;
+      const raw = Math.hypot(scx - hcx, scy - hcy);
 
-    function hideLoading() {
-      document.getElementById('loadingOverlay').classList.add('hidden');
-    }
+      // 合理性检查
+      if (raw < 10 || raw > 500) return this.scale;
 
-    function mirrorText(text) {
-      return text;
-    }
-
-    // 从URL获取参数
-    const urlParams = new URLSearchParams(window.location.search);
-    const sportCode = urlParams.get('code') || 'high_knee_lift';
-    const sportName = decodeURIComponent(urlParams.get('name') || '高抬腿');
-
-    console.log('[运动识别] 运动类型:', sportCode, sportName);
-
-    // 全局变量
-    let detector = null;
-    let isRunning = false;
-    let count = 0;
-    let video = null;
-    let canvas = null;
-    let ctx = null;
-    let animationId = null;
-    let useFrontCamera = false;
-
-    // COCO骨架连接线
-    const SKELETON_CONNECTIONS = [
-      [0, 1], [0, 2], [1, 3], [2, 4],
-      [0, 5], [0, 6], [5, 7], [7, 9], [6, 8], [8, 10],
-      [5, 11], [6, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 12]
-    ];
-
-    // 初始化
-    async function init() {
-      console.log('[运动识别] 开始初始化...');
-
-      try {
-        updateLoading('初始化中...', '正在等待TensorFlow.js后端就绪...');
-
-        await tf.ready();
-        console.log('[运动识别] TensorFlow.js 后端已就绪');
-        console.log('[运动识别] 当前后端:', tf.getBackend());
-
-        updateLoading('加载中...', '正在从GitHub加载模型...');
-
-        const modelUrl = 'https://smartfitoss.github.io/smartfit-sport/model.json';
-        console.log('[运动识别] 模型URL:', modelUrl);
-
-        updateLoading('加载中...', '正在创建检测器...');
-
-        detector = await poseDetection.createDetector(
-          poseDetection.SupportedModels.MoveNet,
-          {
-            modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
-            modelUrl: modelUrl
-          }
-        );
-
-        console.log('[运动识别] MoveNet 检测器创建成功');
-        updateLoading('加载中...', '模型加载完成，正在启动摄像头...');
-
-        await initCamera();
-
-        console.log('[运动识别] 初始化完成！');
-        hideLoading();
-
-      } catch (error) {
-        console.error('[运动识别] 初始化失败:', error);
-        showError('初始化失败：' + error.message);
-      }
-    }
-
-    async function initCamera() {
-      video = document.getElementById('video');
-      canvas = document.getElementById('canvas');
-      ctx = canvas.getContext('2d');
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: useFrontCamera ? 'user' : 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        });
-
-        video.srcObject = stream;
-        await video.play();
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        console.log('[运动识别] 摄像头就绪');
-
-      } catch (error) {
-        console.error('[运动识别] 摄像头启动失败:', error);
-        throw new Error('摄像头启动失败: ' + error.message);
-      }
-    }
-
-    function toggleDetection() {
-      isRunning = !isRunning;
-      const btn = document.getElementById('btnToggle');
-
-      if (isRunning) {
-        btn.textContent = '停止';
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-stop');
-        startDetection();
+      if (this.scale === null) {
+        this.scale = raw;
       } else {
-        btn.textContent = '开始';
-        btn.classList.remove('btn-stop');
-        btn.classList.add('btn-primary');
-        stopDetection();
+        const changeRatio = Math.abs(raw - this.scale) / this.scale;
+        const a = changeRatio > 0.3 ? this.alpha * 0.2 : this.alpha;
+        this.scale = (1 - a) * this.scale + a * raw;
       }
+      return this.scale;
     }
+  }
 
-    async function switchCamera() {
-      console.log('[运动识别] 切换摄像头');
+  // ============================================================
+  //  运动计数器 —— 统一接口：detect(keypoints, scale) → result|null
+  //  result: { count?: number, distance?: number, status?: string }
+  // ============================================================
 
-      if (isRunning) {
-        stopDetection();
+  // ---------- 高抬腿 ----------
+  function HighKneesCounter() {
+    this.lastLeg = null;
+    this.complete = false;
+    this.bothlegs = false;
+    this.count = 0;
+
+    this.detect = function(kp, scale) {
+      const required = [KP.LEFT_HIP, KP.RIGHT_HIP, KP.LEFT_KNEE, KP.RIGHT_KNEE, KP.LEFT_ANKLE, KP.RIGHT_ANKLE];
+      if (!checkConfidence(kp, required, 0.3)) return null;
+
+      const lHip = kp[KP.LEFT_HIP], rHip = kp[KP.RIGHT_HIP];
+      const lKnee = kp[KP.LEFT_KNEE], rKnee = kp[KP.RIGHT_KNEE];
+
+      // 膝盖高度达标（y 越小越高）
+      const leftKneeUp  = (lKnee.y - lHip.y) <= scale * 0.6;
+      const rightKneeUp = (rKnee.y - rHip.y) <= scale * 0.6;
+
+      // 双脚同时过高（违规检测）
+      const leftHigh  = (lKnee.y - lHip.y) <= scale * 0.2;
+      const rightHigh = (rKnee.y - rHip.y) <= scale * 0.2;
+      if (leftHigh && rightHigh) this.bothlegs = true;
+
+      // 上次抬的腿是否已放下
+      let lastLegDown = true;
+      if (this.lastLeg === 'left')  lastLegDown = !leftKneeUp;
+      if (this.lastLeg === 'right') lastLegDown = !rightKneeUp;
+
+      if (leftKneeUp && this.lastLeg !== 'left' && lastLegDown) {
+        this.lastLeg = 'left';
+        this.complete = true;
+      }
+      if (rightKneeUp && this.lastLeg !== 'right' && lastLegDown) {
+        this.lastLeg = 'right';
+        this.complete = true;
       }
 
-      if (video.srcObject) {
-        video.srcObject.getTracks().forEach(track => track.stop());
-      }
-
-      useFrontCamera = !useFrontCamera;
-      console.log('[运动识别] 新摄像头:', useFrontCamera ? '前置' : '后置');
-
-      try {
-        await initCamera();
-        console.log('[运动识别] 摄像头切换成功');
-
-        if (isRunning) {
-          startDetection();
+      let result = null;
+      if (this.complete) {
+        if (!this.bothlegs) {
+          this.count++;
+          result = { count: this.count, status: '抬腿' + this.lastLeg + ' ✓' };
+        } else {
+          result = { status: '⚠️ 双脚同时离地' };
         }
-      } catch (error) {
-        console.error('[运动识别] 摄像头切换失败:', error);
-        alert('摄像头切换失败: ' + error.message);
+        this.complete = false;
+        this.bothlegs = false;
       }
-    }
+      return result;
+    };
+  }
 
-    function startDetection() {
-      console.log('[运动识别] 开始识别');
-      isRunning = true;
-      detectLoop();
-    }
+  // ---------- 深蹲 ----------
+  function SquatCounter() {
+    this.state = 'up';
+    this.count = 0;
 
-    function stopDetection() {
-      console.log('[运动识别] 停止识别');
-      isRunning = false;
-      if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
+    this.detect = function(kp, scale) {
+      const required = [KP.LEFT_HIP, KP.RIGHT_HIP, KP.LEFT_KNEE, KP.RIGHT_KNEE, KP.LEFT_ANKLE, KP.RIGHT_ANKLE];
+      if (!checkConfidence(kp, required, 0.3)) return null;
+
+      const lHip = kp[KP.LEFT_HIP], rHip = kp[KP.RIGHT_HIP];
+      const lKnee = kp[KP.LEFT_KNEE], rKnee = kp[KP.RIGHT_KNEE];
+      const lAnkle = kp[KP.LEFT_ANKLE], rAnkle = kp[KP.RIGHT_ANKLE];
+
+      const lAngle = calcAngle(lHip, lKnee, lAnkle);
+      const rAngle = calcAngle(rHip, rKnee, rAnkle);
+      const angle = Math.min(lAngle, rAngle);
+
+      const STAND = 160, SQUAT = 105;
+      let result = null;
+
+      if (this.state === 'up' && angle < SQUAT) {
+        this.state = 'down';
+      } else if (this.state === 'down' && angle > STAND) {
+        this.state = 'up';
+        this.count++;
+        result = { count: this.count, status: '深蹲 ✓' };
       }
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 状态提示
+      if (!result) {
+        if (this.state === 'down') return { status: '下蹲中 ' + Math.round(angle) + '°' };
+        return { status: '站立 ' + Math.round(angle) + '°' };
       }
-    }
+      return result;
+    };
+  }
 
-    async function detectLoop() {
-      if (!isRunning || !detector) return;
+  // ---------- 开合跳 ----------
+  function JumpingJackCounter() {
+    this.state = 'close';
+    this.count = 0;
 
-      try {
-        const poses = await detector.estimatePoses(video);
+    this.detect = function(kp, scale) {
+      const required = [KP.LEFT_ANKLE, KP.RIGHT_ANKLE, KP.LEFT_WRIST, KP.RIGHT_WRIST, KP.LEFT_SHOULDER, KP.RIGHT_SHOULDER];
+      if (!checkConfidence(kp, required, 0.3)) return null;
 
-        if (poses && poses.length > 0) {
-          const pose = poses[0];
-          drawSkeleton(pose);
+      const lAnkle = kp[KP.LEFT_ANKLE], rAnkle = kp[KP.RIGHT_ANKLE];
+      const lWrist = kp[KP.LEFT_WRIST], rWrist = kp[KP.RIGHT_WRIST];
+      const lShoulder = kp[KP.LEFT_SHOULDER], rShoulder = kp[KP.RIGHT_SHOULDER];
+
+      const footDist = Math.abs(lAnkle.x - rAnkle.x);
+      const handsUp = (lWrist.y < lShoulder.y) && (rWrist.y < rShoulder.y);
+      const handsDown = (lWrist.y > lShoulder.y) && (rWrist.y > rShoulder.y);
+
+      const FOOT_OPEN = scale * 0.9;
+      const FOOT_CLOSE = scale * 0.6;
+
+      const isOpen = footDist > FOOT_OPEN && handsUp;
+      const isClose = footDist < FOOT_CLOSE && handsDown;
+
+      let result = null;
+      if (this.state === 'close' && isOpen) {
+        this.state = 'open';
+      } else if (this.state === 'open' && isClose) {
+        this.state = 'close';
+        this.count++;
+        result = { count: this.count, status: '开合跳 ✓' };
+      }
+
+      if (!result) {
+        return { status: this.state === 'open' ? '打开 ✓' : '准备...' };
+      }
+      return result;
+    };
+  }
+
+  // ---------- 仰卧起坐 ----------
+  function SitupCounter() {
+    this.state = 'down';
+    this.count = 0;
+
+    this.detect = function(kp, scale) {
+      const required = [KP.LEFT_SHOULDER, KP.RIGHT_SHOULDER, KP.LEFT_HIP, KP.RIGHT_HIP, KP.LEFT_KNEE, KP.RIGHT_KNEE];
+      if (!checkConfidence(kp, required, 0.3)) return null;
+
+      const lShoulder = kp[KP.LEFT_SHOULDER], rShoulder = kp[KP.RIGHT_SHOULDER];
+      const lHip = kp[KP.LEFT_HIP], rHip = kp[KP.RIGHT_HIP];
+      const lKnee = kp[KP.LEFT_KNEE], rKnee = kp[KP.RIGHT_KNEE];
+
+      const lAngle = calcAngle(lShoulder, lHip, lKnee);
+      const rAngle = calcAngle(rShoulder, rHip, rKnee);
+      const angle = (lAngle + rAngle) / 2;
+
+      const LYING = 150, SITTING = 90;
+      let result = null;
+
+      if (this.state === 'down' && angle < SITTING) {
+        this.state = 'up';
+      } else if (this.state === 'up' && angle > LYING) {
+        this.state = 'down';
+        this.count++;
+        result = { count: this.count, status: '仰卧起坐 ✓' };
+      }
+
+      if (!result) {
+        if (this.state === 'up') return { status: '坐起 ✓ ' + Math.round(angle) + '°' };
+        return { status: '躺平 ' + Math.round(angle) + '°' };
+      }
+      return result;
+    };
+  }
+
+  // ---------- 立定跳远 ----------
+  function StandingLongJumpCounter() {
+    this.phase = 'waiting_ready';
+    this.startX = null;
+    this.baseY = null;
+    this.readyPlayed = false;
+    this.count = 0;
+    this.lastDistance = 0;
+
+    this.detect = function(kp, scale) {
+      const required = [KP.LEFT_ANKLE, KP.RIGHT_ANKLE, KP.LEFT_WRIST, KP.RIGHT_WRIST, KP.LEFT_SHOULDER, KP.RIGHT_SHOULDER];
+      if (!checkConfidence(kp, required, 0.3)) return null;
+
+      const lAnkle = kp[KP.LEFT_ANKLE], rAnkle = kp[KP.RIGHT_ANKLE];
+      const lWrist = kp[KP.LEFT_WRIST], rWrist = kp[KP.RIGHT_WRIST];
+      const lShoulder = kp[KP.LEFT_SHOULDER], rShoulder = kp[KP.RIGHT_SHOULDER];
+
+      const avgAnkleY = (lAnkle.y + rAnkle.y) / 2;
+      const avgAnkleX = (lAnkle.x + rAnkle.x) / 2;
+      const avgShoulderY = (lShoulder.y + rShoulder.y) / 2;
+
+      if (this.baseY === null) this.baseY = avgAnkleY;
+
+      let result = null;
+
+      // 阶段1：等待举手
+      if (this.phase === 'waiting_ready') {
+        const handsUp = (lWrist.y < avgShoulderY - scale * 0.3) &&
+                        (rWrist.y < avgShoulderY - scale * 0.3);
+        if (handsUp) {
+          this.phase = 'ready';
+          this.startX = avgAnkleX;
+          this.baseY = avgAnkleY;
+          if (!this.readyPlayed) {
+            this.readyPlayed = true;
+            result = { status: '✅ 已准备！请起跳！' };
+          }
+        } else {
+          result = { status: '🙋 举手确认准备' };
         }
-
-      } catch (error) {
-        console.error('[运动识别] 识别错误:', error);
       }
 
-      animationId = requestAnimationFrame(detectLoop);
-    }
-
-    function drawSkeleton(pose) {
-      if (!ctx) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 3;
-
-      for (const [startIdx, endIdx] of SKELETON_CONNECTIONS) {
-        const startKp = pose.keypoints[startIdx];
-        const endKp = pose.keypoints[endIdx];
-
-        if (startKp.score > 0.3 && endKp.score > 0.3) {
-          ctx.beginPath();
-          ctx.moveTo(startKp.x, startKp.y);
-          ctx.lineTo(endKp.x, endKp.y);
-          ctx.stroke();
+      // 阶段2：已准备，检测起跳
+      else if (this.phase === 'ready') {
+        const jumpHeight = this.baseY - avgAnkleY;
+        if (jumpHeight > scale * 0.08) {
+          this.phase = 'jumping';
+          result = { status: '🚀 腾空中...' };
+        } else {
+          result = { status: '⏳ 等待起跳' };
         }
       }
 
-      for (const kp of pose.keypoints) {
-        if (kp.score > 0.3) {
-          ctx.beginPath();
-          ctx.arc(kp.x, kp.y, 6, 0, 2 * Math.PI);
-          ctx.fillStyle = '#ff0000';
-          ctx.fill();
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.stroke();
+      // 阶段3：腾空中，检测落地
+      else if (this.phase === 'jumping') {
+        const jumpHeight = this.baseY - avgAnkleY;
+        if (jumpHeight < scale * 0.02) {
+          const feetSync = Math.abs(lAnkle.y - rAnkle.y) < scale * 0.05;
+          if (feetSync) {
+            const distNorm = Math.abs(avgAnkleX - this.startX);
+            const distance = distNorm / scale * 40;
+            this.lastDistance = distance;
+            this.count++;
+            result = { distance: distance, status: '✅ 跳跃距离: ' + distance.toFixed(1) + ' cm' };
+          } else {
+            result = { status: '⚠️ 双脚落地不同步' };
+          }
+          // 重置，准备下一轮
+          this.phase = 'waiting_ready';
+          this.startX = null;
+          this.baseY = null;
+          this.readyPlayed = false;
+        } else {
+          result = { status: '🚀 腾空中...' };
         }
       }
+
+      return result;
+    };
+  }
+
+  // ---------- 跳绳 ----------
+  function JumpRopeCounter() {
+    this.history = [];
+    this.maxHistory = 60;
+    this.state = 'ground';
+    this.minValue = Infinity;
+    this.maxValue = -Infinity;
+    this.count = 0;
+
+    this.detect = function(kp, scale) {
+      const required = [KP.LEFT_ANKLE, KP.RIGHT_ANKLE, KP.LEFT_HIP, KP.RIGHT_HIP];
+      if (!checkConfidence(kp, required, 0.3)) return null;
+
+      const lAnkle = kp[KP.LEFT_ANKLE], rAnkle = kp[KP.RIGHT_ANKLE];
+      const lHip = kp[KP.LEFT_HIP], rHip = kp[KP.RIGHT_HIP];
+
+      const lRelY = lAnkle.y - lHip.y;
+      const rRelY = rAnkle.y - rHip.y;
+      const avgRelY = (lRelY + rRelY) / 2;
+
+      this.history.push(avgRelY);
+      if (this.history.length > this.maxHistory) this.history.shift();
+      if (this.history.length < 10) return { status: '采集数据中...' };
+
+      const reference = this.history.reduce((s, v) => s + v, 0) / this.history.length;
+      const relPos = avgRelY - reference;
+
+      const MIN_AMP = scale * 0.03;
+      const AIR_TH = -scale * 0.02;
+      const GROUND_TH = scale * 0.01;
+
+      this.minValue = Math.min(this.minValue, avgRelY);
+      this.maxValue = Math.max(this.maxValue, avgRelY);
+      const amplitude = this.maxValue - this.minValue;
+
+      let result = null;
+
+      if (this.state === 'ground' && relPos < AIR_TH) {
+        this.state = 'air';
+        this.minValue = avgRelY;
+        this.maxValue = avgRelY;
+      } else if (this.state === 'air' && relPos > GROUND_TH) {
+        if (amplitude >= MIN_AMP) {
+          this.count++;
+          result = { count: this.count, status: '跳绳 ✓' };
+        } else {
+          result = { status: '振幅不足' };
+        }
+        this.state = 'ground';
+        this.minValue = Infinity;
+        this.maxValue = -Infinity;
+      }
+
+      if (!result) {
+        result = { status: this.state === 'air' ? '腾空 ✓' : '准备...' };
+      }
+      return result;
+    };
+  }
+
+  // ============================================================
+  //  主程序
+  // ============================================================
+
+  // --- URL 参数 ---
+  const urlParams = new URLSearchParams(window.location.search);
+  const sportCode = urlParams.get('code') || 'high_knee_lift';
+  const sportName = decodeURIComponent(urlParams.get('name') || '高抬腿');
+
+  const sportConfig = SPORT_MAP[sportCode] || SPORT_MAP['high_knee_lift'];
+  const counter = sportConfig.factory();
+  const bodyScale = new BodyScale(0.1);
+
+  // --- 全局状态 ---
+  let detector = null;
+  let isRunning = false;
+  let video = null, canvas = null, ctx = null;
+  let animationId = null;
+  let useFrontCamera = false;
+
+  // --- UI 引用 ---
+  const elLoading = document.getElementById('loadingOverlay');
+  const elLoadingProgress = document.getElementById('loadingProgress');
+  const elError = document.getElementById('errorOverlay');
+  const elErrorText = document.getElementById('errorText');
+  const elSportName = document.getElementById('sportName');
+  const elCounterValue = document.getElementById('counterValue');
+  const elCounterUnit = document.getElementById('counterUnit');
+  const elStatusText = document.getElementById('statusText');
+  const elBtnToggle = document.getElementById('btnToggle');
+  const elBtnSwitch = document.getElementById('btnSwitch');
+  const elBtnBack = document.getElementById('btnBack');
+
+  // 初始化 UI
+  elSportName.textContent = sportName;
+  elCounterUnit.textContent = sportConfig.unit;
+
+  // --- UI 更新 ---
+  function updateCounterDisplay(result) {
+    if (!result) return;
+
+    if (typeof result.count === 'number') {
+      elCounterValue.textContent = result.count;
+      // 数字弹跳动画
+      elCounterValue.classList.remove('bump');
+      void elCounterValue.offsetWidth; // trigger reflow
+      elCounterValue.classList.add('bump');
+    }
+    if (typeof result.distance === 'number') {
+      elCounterValue.textContent = result.distance.toFixed(1);
+      elCounterValue.classList.remove('bump');
+      void elCounterValue.offsetWidth;
+      elCounterValue.classList.add('bump');
+    }
+    if (result.status) {
+      elStatusText.textContent = result.status;
     }
 
-    document.getElementById('btnToggle').addEventListener('click', toggleDetection);
-    document.getElementById('btnSwitch').addEventListener('click', switchCamera);
-    document.getElementById('btnBack').addEventListener('click', function() {
-      if (window.wx && window.wx.miniProgram) {
-        window.wx.miniProgram.postMessage({ data: { action: 'finish' } });
+    // 发送计数到小程序（延迟接收，web-view 关闭时触发）
+    sendToMiniProgram({ action: 'update', sport: sportCode, count: counter.count });
+  }
+
+  // --- 小程序通信 ---
+  function sendToMiniProgram(data) {
+    if (window.wx && window.wx.miniProgram) {
+      window.wx.miniProgram.postMessage({ data: data });
+    }
+  }
+
+  function finishExercise() {
+    const payload = {
+      action: 'finish',
+      sport: sportCode,
+      sportName: sportName,
+      count: counter.count
+    };
+    // 立定跳远额外发送距离
+    if (sportCode === 'standing_long_jump' && counter.lastDistance) {
+      payload.distance = counter.lastDistance;
+    }
+    sendToMiniProgram(payload);
+  }
+
+  // --- 初始化 ---
+  async function init() {
+    try {
+      elLoadingProgress.textContent = '正在等待 TensorFlow.js...';
+      await tf.ready();
+
+      elLoadingProgress.textContent = '正在加载模型...';
+      detector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        {
+          modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+          modelUrl: 'https://smartfitoss.github.io/smartfit-sport/model.json'
+        }
+      );
+
+      elLoadingProgress.textContent = '正在启动摄像头...';
+      await initCamera();
+
+      elLoading.classList.add('hidden');
+    } catch (err) {
+      showError('初始化失败：' + err.message);
+    }
+  }
+
+  // --- 摄像头 ---
+  async function initCamera() {
+    video = document.getElementById('video');
+    canvas = document.getElementById('canvas');
+    ctx = canvas.getContext('2d');
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: useFrontCamera ? 'user' : 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       }
-      window.close();
     });
 
-    window.addEventListener('load', init);
+    video.srcObject = stream;
+    await video.play();
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // 前置摄像头镜像（像照镜子），后置不镜像
+    if (useFrontCamera) {
+      video.classList.add('mirror');
+      canvas.classList.add('mirror');
+    } else {
+      video.classList.remove('mirror');
+      canvas.classList.remove('mirror');
+    }
+  }
+
+  // --- 摄像头切换 ---
+  async function switchCamera() {
+    if (isRunning) stopDetection();
+    if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+    useFrontCamera = !useFrontCamera;
+    try {
+      await initCamera();
+      if (isRunning) startDetection();
+    } catch (err) {
+      elStatusText.textContent = '摄像头切换失败';
+    }
+  }
+
+  // --- 检测循环 ---
+  function startDetection() {
+    isRunning = true;
+    elBtnToggle.textContent = '暂停';
+    elBtnToggle.classList.remove('btn-primary');
+    elBtnToggle.classList.add('btn-stop');
+    detectLoop();
+  }
+
+  function stopDetection() {
+    isRunning = false;
+    elBtnToggle.textContent = '继续';
+    elBtnToggle.classList.remove('btn-stop');
+    elBtnToggle.classList.add('btn-primary');
+    if (animationId) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  async function detectLoop() {
+    if (!isRunning || !detector) return;
+
+    try {
+      const poses = await detector.estimatePoses(video);
+
+      if (poses && poses.length > 0) {
+        const pose = poses[0];
+        const kp = pose.keypoints;
+
+        // 绘制骨架
+        drawSkeleton(kp);
+
+        // 计算 scale
+        const scale = bodyScale.compute(kp);
+
+        // 运动计数
+        if (scale) {
+          const result = counter.detect(kp, scale);
+          if (result) updateCounterDisplay(result);
+        }
+      }
+    } catch (err) {
+      console.error('[运动识别] 检测错误:', err);
+    }
+
+    animationId = requestAnimationFrame(detectLoop);
+  }
+
+  // --- 骨架绘制 ---
+  function drawSkeleton(kp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 连线
+    ctx.strokeStyle = '#00ff88';
+    ctx.lineWidth = 3;
+    for (const [s, e] of SKELETON) {
+      if (kp[s].score > 0.3 && kp[e].score > 0.3) {
+        ctx.beginPath();
+        ctx.moveTo(kp[s].x, kp[s].y);
+        ctx.lineTo(kp[e].x, kp[e].y);
+        ctx.stroke();
+      }
+    }
+
+    // 关键点
+    for (let i = 0; i < kp.length; i++) {
+      if (kp[i].score > 0.3) {
+        ctx.beginPath();
+        ctx.arc(kp[i].x, kp[i].y, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = '#ff4444';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+  }
+
+  // --- 错误处理 ---
+  function showError(msg) {
+    elLoading.classList.add('hidden');
+    elError.style.display = 'flex';
+    elErrorText.textContent = msg;
+  }
+
+  // --- 事件绑定 ---
+  elBtnToggle.addEventListener('click', () => {
+    if (isRunning) stopDetection();
+    else startDetection();
+  });
+
+  elBtnSwitch.addEventListener('click', switchCamera);
+
+  elBtnBack.addEventListener('click', () => {
+    finishExercise();
+    setTimeout(() => window.close(), 100);
+  });
+
+  // --- 启动 ---
+  window.addEventListener('load', init);
+
   </script>
 </body>
 </html>
